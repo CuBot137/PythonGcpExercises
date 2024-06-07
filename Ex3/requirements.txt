@@ -1,0 +1,2 @@
+cloudevents==1.10.1
+functions_framework==3.7.0
