@@ -1,0 +1,2 @@
+coord_lon,coord_lat,weather_0_id,weather_0_main,weather_0_description,weather_0_icon,base,main_temp,main_feels_like,main_temp_min,main_temp_max,main_pressure,main_humidity,main_sea_level,main_grnd_level,visibility,wind_speed,wind_deg,wind_gust,clouds_all,dt,sys_type,sys_id,sys_country,sys_sunrise,sys_sunset,timezone,id,name,cod
+-7.3376,53.5255,803,Clouds,broken clouds,04d,stations,289.68,288.93,289.68,289.68,1014,59,1014,1002,10000,2.33,57,2.47,68,1720877648,2,2016255,IE,1720844219,1720903972,3600,2962361,Mullingar,200
