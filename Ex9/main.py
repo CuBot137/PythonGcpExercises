@@ -1,79 +1,51 @@
+import requests
+import json
 import functions_framework
-from google.cloud import aiplatform
-from typing import Dict
-from google.protobuf import json_format
-from google.protobuf.struct_pb2 import Value
+import flask
 import logging
 
 
-
-functions_framework.http
-def ex9_function(cloud_event):
+@functions_framework.http
+def ex9_function(request: flask.Request):
     logging.basicConfig(level=logging.INFO)
-    global logger 
     logger = logging.getLogger(__name__)
-    logger.info(f"Cloud event: {cloud_event}")
-    example_1 = {
-        "StudentID": "1001",
-        "Age" : "16",
-        "Ethnicity" : "1",
-        "ParentalEducation" : "2",
-        "StudyTimeWeekly" : "12.721150838053616",
-        "Absences" : "13",
-        "Tutoring" : "1",
-        "ParentalSupport" : "1",
-        "Extracurricular" : "1",
-        "Sports" : "1",
-        "Music" : "1",
-        "Volunteering" : "1",
-        "GPA" : "3.57347421032976",
-        "GradeClass" : "4",
+
+    response = vertexai_endpoint_request()
+    prediction = response['predictions']
+    value = prediction[0]['value']
+    logger.info(f"Prediction: {str(value)}")
+
+    return str(value)
+    
+
+
+
+def vertexai_endpoint_request():
+    endpoint_url = endpoint_url = "https://us-central1-aiplatform.googleapis.com/v1beta1/projects/storage-object-trigger/locations/us-central1/endpoints/1344216736630571008:predict"
+    access_token = "ya29.a0AXooCgsz9O-QXRrTVqslA7Z_MR9nkx7iDqQfwHmRQH_Q1HgVgf7LXxl29qWUDKuI4fnKdKBLhL4wAkmd2Hw-Q9kRzW5wZW5CcAK316NcIRqL7peECoy9f_aH0KB7itHL9v2lsD0SrDBjsMcyR_fAjgUAjtSHaT9ciF5E7uKTSv8aCgYKAZwSARMSFQHGX2MiQkxZaS_0xx9VJQoj4H9rEQ0178"
+    headers = {
+        "Authorization": f"Bearer {access_token}",
+        "Content-Type": "application/json",
     }
-
-    project_id = "storage-object-trigger"
-    endpoint_id = "1344216736630571008"
-    location = "us-central1"
-    instance_dict = example_1
-    api_endpoint = "us-central1-aiplatform.googleapis.com"
-    try:
-        result = predict_tabular_classification_sample(project_id, endpoint_id, location, instance_dict, api_endpoint)
-        return result
-    except Exception as e:
-        logger.error(f"Error: {e}")
-    logger.info("Prediction completed")
-
-
-
-
-# Code copied from https://github.com/googleapis/python-aiplatform/blob/main/samples/snippets/prediction_service/predict_tabular_classification_sample.py
-# Changed print to logger.info
-def predict_tabular_classification_sample(
-    project: str,
-    endpoint_id: str,
-    instance_dict: Dict,
-    location: str = "us-central1",
-    api_endpoint: str = "us-central1-aiplatform.googleapis.com",
-):
-    # The AI Platform services require regional API endpoints.
-    client_options = {"api_endpoint": api_endpoint}
-    # Initialize client that will be used to create and send requests.
-    # This client only needs to be created once, and can be reused for multiple requests.
-    client = aiplatform.gapic.PredictionServiceClient(client_options=client_options)
-    # for more info on the instance schema, please use get_model_sample.py
-    # and look at the yaml found in instance_schema_uri
-    instance = json_format.ParseDict(instance_dict, Value())
-    instances = [instance]
-    parameters_dict = {}
-    parameters = json_format.ParseDict(parameters_dict, Value())
-    endpoint = client.endpoint_path(
-        project=project, location=location, endpoint=endpoint_id
-    )
-    response = client.predict(
-        endpoint=endpoint, instances=instances, parameters=parameters
-    )
-    logger.info("response")
-    logger.info(" deployed_model_id:", response.deployed_model_id)
-    # See gs://google-cloud-aiplatform/schema/predict/prediction/tabular_classification_1.0.0.yaml for the format of the predictions.
-    predictions = response.predictions
-    for prediction in predictions:
-        logger.info(" prediction:", dict(prediction))
+    data = {
+        "instances": [
+            {
+                "StudentID": "1001",
+                "Age" : "16",
+                "Ethnicity" : "1",
+                "ParentalEducation" : "2",
+                "StudyTimeWeekly" : "12.721150838053616",
+                "Absences" : "13",
+                "Tutoring" : "0",
+                "ParentalSupport" : "0",
+                "Extracurricular" : "0",
+                "Sports" : "0",
+                "Music" : "0",
+                "Volunteering" : "1",
+                "GPA" : "3.57347421032976",
+                "GradeClass" : "4",
+            }
+        ]
+    }
+    response = requests.post(endpoint_url, headers=headers, data=json.dumps(data))
+    return response.json()
