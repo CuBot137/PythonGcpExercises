@@ -1,51 +1,71 @@
-import requests
-import json
+from typing import Dict
+
+from google.cloud import aiplatform
+from google.protobuf import json_format
+from google.protobuf.struct_pb2 import Value
 import functions_framework
 import flask
-import logging
+import logging 
 
 
 @functions_framework.http
 def ex9_function(request: flask.Request):
     logging.basicConfig(level=logging.INFO)
+    global logger
     logger = logging.getLogger(__name__)
 
-    response = vertexai_endpoint_request()
-    prediction = response['predictions']
-    value = prediction[0]['value']
-    logger.info(f"Prediction: {str(value)}")
+    try:
+        # get_json() turns json payload into a dictionary
+        request_json = request.get_json()
+    except Exception as e:
+        logger.error(f"Error loading JSON from request: {e}")
+        return "Error loading JSON from request", 500
 
-    return str(value)
-    
+    instance_data = request_json.get('instance_data')
+    if not instance_data:
+        return "missing instance data in request", 400
+
+    values_list = predict_tabular_regression_sample("storage-object-trigger","1344216736630571008", instance_data, "us-central1", "us-central1-aiplatform.googleapis.com")
+    values_string = ', '.join(str(i) for i in values_list)
+    logger.info(f"Predicted Values: {values_string}")
+    return f"Predicted Values {values_string}"
 
 
+def predict_tabular_regression_sample(
+    project: str,
+    endpoint_id: str,
+    instance_dict: Dict,
+    location: str = "us-central1",
+    api_endpoint: str = "us-central1-aiplatform.googleapis.com",
+):
+    try:
+        # The AI Platform services require regional API endpoints.
+        client_options = {"api_endpoint": api_endpoint}
+        # Initialize client that will be used to create and send requests.
+        # This client only needs to be created once, and can be reused for multiple requests.
+        client = aiplatform.gapic.PredictionServiceClient(client_options=client_options)
+        # for more info on the instance schema, please use get_model_sample.py
+        # and look at the yaml found in instance_schema_uri
+        instance = json_format.ParseDict(instance_dict, Value())
+        instances = [instance]
+        parameters_dict = {}
+        parameters = json_format.ParseDict(parameters_dict, Value())
+        endpoint = client.endpoint_path(
+            project=project, location=location, endpoint=endpoint_id
+        )
+        response = client.predict(
+            endpoint=endpoint, instances=instances, parameters=parameters
+        )
+        logger.info("response")
+        logger.info(f"Deployed_model_id:{response.deployed_model_id}")
+        # See gs://google-cloud-aiplatform/schema/predict/prediction/tabular_regression_1.0.0.yaml for the format of the predictions.
+        predictions = response.predictions
+        values = []
+        for prediction in predictions:
+            prediction_dict = dict(prediction)
+            value = prediction_dict.get('value','N/A')
+            values.append(value)
+        return values
 
-def vertexai_endpoint_request():
-    endpoint_url = endpoint_url = "https://us-central1-aiplatform.googleapis.com/v1beta1/projects/storage-object-trigger/locations/us-central1/endpoints/1344216736630571008:predict"
-    access_token = "ya29.a0AXooCgsz9O-QXRrTVqslA7Z_MR9nkx7iDqQfwHmRQH_Q1HgVgf7LXxl29qWUDKuI4fnKdKBLhL4wAkmd2Hw-Q9kRzW5wZW5CcAK316NcIRqL7peECoy9f_aH0KB7itHL9v2lsD0SrDBjsMcyR_fAjgUAjtSHaT9ciF5E7uKTSv8aCgYKAZwSARMSFQHGX2MiQkxZaS_0xx9VJQoj4H9rEQ0178"
-    headers = {
-        "Authorization": f"Bearer {access_token}",
-        "Content-Type": "application/json",
-    }
-    data = {
-        "instances": [
-            {
-                "StudentID": "1001",
-                "Age" : "16",
-                "Ethnicity" : "1",
-                "ParentalEducation" : "2",
-                "StudyTimeWeekly" : "12.721150838053616",
-                "Absences" : "13",
-                "Tutoring" : "0",
-                "ParentalSupport" : "0",
-                "Extracurricular" : "0",
-                "Sports" : "0",
-                "Music" : "0",
-                "Volunteering" : "1",
-                "GPA" : "3.57347421032976",
-                "GradeClass" : "4",
-            }
-        ]
-    }
-    response = requests.post(endpoint_url, headers=headers, data=json.dumps(data))
-    return response.json()
+    except Exception as e:
+        logger.info(f"Prediction request to AI Platform failed: {e}")
