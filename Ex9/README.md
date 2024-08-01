@@ -19,4 +19,12 @@
 - Return predictions
 
 ## Deploy Command
-gcloud functions deploy <function_name> --gen2 --runtime python312 --trigger-http --allow-unauthenticated --memory 512MB
+- gcloud functions deploy <function_name> --gen2 --runtime python312 --trigger-http --allow-unauthenticated --memory 512MB
+
+## Example Result
+- Predicted Values 0.3406739234924316
+- Vertex AI predicts the likelyhood of a positive result.
+- In my dataset we are predicting the gender
+- 0 = male
+- 1 = female
+- The result is the probability of the student being female, positive result
